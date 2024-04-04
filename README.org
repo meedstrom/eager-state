@@ -8,7 +8,7 @@ It's lucky I was skilled enough to eventually figure out /why/!  Imagine life fo
 
 *The why* is that many packages rely inappropriately on =kill-emacs-hook=.  They write program state to disk /only/ when Emacs shuts down cleanly!
 
-That's always been considered sloppy design, but particularly so under 2024 norms.  Most of the time my Emacs goes down, it's a SIGTERM, drained battery, crash, kernel panic, system freeze, Emacs freeze, segfault, DE logout, X11/Wayland crash, yanked power cord, or accidental power button event.
+That's always been considered sloppy design, but particularly so under 2024 norms, when every app eagerly caches their state.  Most of the time my Emacs goes down, it's a SIGTERM, drained battery, crash, kernel panic, system freeze, Emacs freeze, segfault, DE logout, X11/Wayland crash, yanked power cord, or accidental or intentional power button event.
 
 I'm not sure who is the mythical user for whom Emacs usually goes down through a choice to type ~C-x C-c~ that succeeds.  As a package dev, you definitely can't assume that about all your users.
 
