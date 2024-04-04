@@ -2,6 +2,8 @@
 
 Problem: I'm missing some data every time I start Emacs: I can't find org notes by =org-id=, =recentf= suffers partial amnesia, and so on.
 
+Very annoying, right?
+
 It's lucky I was skilled enough to eventually figure out /why/!  Imagine life for an amateur Emacs user...
 
 *The why* is that many packages rely inappropriately on =kill-emacs-hook=.  They write program state to disk /only/ when Emacs shuts down cleanly!
@@ -32,10 +34,10 @@ Say a package dev Alice realizes she should put her persist function on an idle 
 
 #+begin_src elisp
 (add-hook 'kill-emacs-hook #'alice-persist-function)
-(run-with-idle-timer 180 t #'alice-persist-function) ;; innovation!
+(run-with-idle-timer 180 t #'alice-persist-function) ;; such innovation wow
 #+end_src
 
-But now Bob, a long-time user of "preempt-kill-emacs-hook-mode", will now find his Emacs running =alice-persist-function= /twice/ when he's idle.
+But now Bob, a long-time user of "preempt-kill-emacs-hook-mode", will now find his Emacs running =alice-persist-function= /twice/ when he's idle.  Because this mode already contained a reference to =alist-persist-function=.
 
 That's normally not a problem, most persist functions are well-behaved if executed many times.  But we cannot know that for sure, and it highlights the mess that may form once dozens of packages all have their own idle timers.
 
