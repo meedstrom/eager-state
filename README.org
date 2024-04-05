@@ -4,7 +4,7 @@ Problem: I'm missing some data every time I start Emacs: I can't find org notes 
 
 Very annoying, right?
 
-It's lucky I was skilled enough to eventually figure out /why/!  Imagine life for an amateur Emacs user...
+It's lucky I was skilled enough to eventually figure out /why/!  Imagine life for a non-programmer Emacs user...
 
 *The why* is that many packages rely inappropriately on =kill-emacs-hook=.  They write program state to disk /only/ when Emacs shuts down cleanly!
 
@@ -16,7 +16,7 @@ I'm not sure who is the mythical user for whom Emacs usually goes down through a
 
 This package ships two features
 
-- For end-users, a mode =eager-state-preempt-kill-emacs-hook-mode=
+- For end-users, a global mode =eager-state-preempt-kill-emacs-hook-mode=
   - It's plug-and-play, but feel free to inspect your own =kill-emacs-hook= for more stuff to add to the variable =eager-state-preempt-functions=.  If you found anything that belongs there, let me know!  I'll include it in the default.
 
 - For package devs, a new hook =eager-state-sync-hook=, as a replacement for =kill-emacs-hook=.
@@ -34,7 +34,7 @@ Say a package dev Alice realizes she should put her persist function on an idle 
 
 #+begin_src elisp
 (add-hook 'kill-emacs-hook #'alice-persist-function)
-(run-with-idle-timer 180 t #'alice-persist-function) ;; such innovation wow
+(run-with-idle-timer 180 t #'alice-persist-function) ;; such innovation
 #+end_src
 
 But now Bob, a long-time user of "preempt-kill-emacs-hook-mode", will now find his Emacs running =alice-persist-function= /twice/ when he's idle.  Because this mode already contained a reference to =alist-persist-function=.
