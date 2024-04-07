@@ -171,9 +171,7 @@ functions to run twice."
 ;; the mode actually does nothing until some other mode you enabled adds
 ;; something there.
 (unless eager-state-prevent
-  (if after-init-time
-      (eager-state-mode)
-    (add-hook 'after-init-hook #'eager-state-mode))
+  (eager-state-mode)
   ;; Run only the first time the file is loaded
   (setq eager-state-prevent t))
 
