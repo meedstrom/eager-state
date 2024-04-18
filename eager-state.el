@@ -53,7 +53,7 @@
 ;; As an optional bonus, knowing that the data is kept well-synced
 ;; allows you to kill/restart Emacs much faster:
 ;;
-;; (advice-add #'kill-emacs :before (lambda () (setq kill-emacs-hook nil))
+;; (advice-add #'kill-emacs :before (lambda (&rest _) (setq kill-emacs-hook nil)))
 
 ;;; Code:
 
