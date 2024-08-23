@@ -1,3 +1,5 @@
+* See also persist-state
+Seems someone else had the same idea: https://codeberg.org/bram85/emacs-persist-state.git
 * eager-state
 
 Problem: I'm missing some data every time I start Emacs: I can't find org notes by =org-id=, =recentf= suffers partial amnesia, and so on.
