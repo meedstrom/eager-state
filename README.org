@@ -5,7 +5,7 @@
 #+TEXINFO_FILENAME: eager-state.info
 #+TEXINFO_DIR_CATEGORY: Emacs
 #+TEXINFO_DIR_TITLE: Eager-State: (eager-state).
-#+TEXINFO_DIR_DESC: Pre-empt kill-emacs-hook with a crash-only design.
+#+TEXINFO_DIR_DESC: Eagerly persist data onto disk.
 
 Problem.  I'm missing some data every time I start Emacs: I can't find Org entries by =org-id=, =recentf= has forgotten a file I know I accessed five minutes ago, and so on.
 
@@ -48,9 +48,7 @@ Out of the box, it has no effect.  You'll want to configure at least =eager-stat
            eshell-save-some-last-dir)))
 #+end_src
 
-With the above setup, Emacs will run the listed functions every now and then.
-
-Actually, it only runs those that are applicable.  See the docstrings of above variables.
+With the above setup, Emacs will try to run the listed functions every now and then.
 
 How often it runs can be tuned through two variables:
 

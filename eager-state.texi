@@ -8,7 +8,7 @@
 
 @dircategory Emacs
 @direntry
-* Eager-State: (eager-state). Pre-empt kill-emacs-hook with a crash-only design.
+* Eager-State: (eager-state). Eagerly persist data onto disk.
 @end direntry
 
 @finalout
@@ -81,9 +81,7 @@ Out of the box@comma{} it has no effect.  You'll want to configure at least @sam
            eshell-save-some-last-dir)))
 @end lisp
 
-With the above setup@comma{} Emacs will run the listed functions every now and then.
-
-Actually@comma{} it only runs those that are applicable.  See the docstrings of above variables.
+With the above setup@comma{} Emacs will try to run the listed functions every now and then.
 
 How often it runs can be tuned through two variables:
 
