@@ -35,27 +35,29 @@ Out of the box, it has no effect.  You'll want to configure at least =eager-stat
 (use-package eager-state
   :config
   (setq eager-state-kill-emacs-hook-subset
-        '(bookmark-exit-hook-internal
-          savehist-autosave
-          transient-maybe-save-history
-          org-clock-save
-          org-id-locations-save
-          save-place-kill-emacs-hook
-          recentf-save-list
-          recentf-cleanup))
+        '( bookmark-exit-hook-internal
+           savehist-autosave
+           transient-maybe-save-history
+           org-clock-save
+           org-id-locations-save
+           save-place-kill-emacs-hook
+           recentf-save-list
+           recentf-cleanup))
   (setq eager-state-kill-emacs-query-functions-subset
-        '(eshell-save-some-history
-          eshell-save-some-last-dir)))
+        '( eshell-save-some-history
+           eshell-save-some-last-dir)))
 #+end_src
 
 With the above setup, Emacs will run the listed functions every now and then.
 
-Technically, it may not run all of them, just those that are applicable.  See the docstrings of above variables.
+Actually, it only runs those that are applicable.  See the docstrings of above variables.
 
 How often it runs can be tuned through two variables:
 
-- =eager-state-periodic-delay=
-- =eager-state-idle-delay=
+#+begin_src elisp
+(setq eager-state-periodic-delay 60)
+(setq eager-state-idle-delay 15)
+#+end_src
 
 That's it in a nutshell.
 
@@ -128,8 +130,8 @@ Someone else had a similar idea, but it is archived now: https://codeberg.org/br
 
 It can happen after setting up =eager-state-mode= that you notice Emacs occasionally stuttering, or even freezing for a few seconds.
 
-This would be one of the functions in =eager-state-kill-emacs-hook-subset= performing very poorly.
+If so, one of the functions in =eager-state-kill-emacs-hook-subset= is performing very poorly.
 
-To track down the culprit, look at time elapsed in the hidden log buffer:
+Track down the culprit by looking at the hidden log buffer:
 
 : (pop-to-buffer " *eager-state*")

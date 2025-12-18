@@ -68,31 +68,29 @@ Out of the box@comma{} it has no effect.  You'll want to configure at least @sam
 (use-package eager-state
   :config
   (setq eager-state-kill-emacs-hook-subset
-        '(bookmark-exit-hook-internal
-          savehist-autosave
-          transient-maybe-save-history
-          org-clock-save
-          org-id-locations-save
-          save-place-kill-emacs-hook
-          recentf-save-list
-          recentf-cleanup))
+        '( bookmark-exit-hook-internal
+           savehist-autosave
+           transient-maybe-save-history
+           org-clock-save
+           org-id-locations-save
+           save-place-kill-emacs-hook
+           recentf-save-list
+           recentf-cleanup))
   (setq eager-state-kill-emacs-query-functions-subset
-        '(eshell-save-some-history
-          eshell-save-some-last-dir)))
+        '( eshell-save-some-history
+           eshell-save-some-last-dir)))
 @end lisp
 
 With the above setup@comma{} Emacs will run the listed functions every now and then.
 
-Technically@comma{} it may not run all of them@comma{} just those that are applicable.  See the docstrings of above variables.
+Actually@comma{} it only runs those that are applicable.  See the docstrings of above variables.
 
 How often it runs can be tuned through two variables:
 
-@itemize
-@item
-@samp{eager-state-periodic-delay}
-@item
-@samp{eager-state-idle-delay}
-@end itemize
+@lisp
+(setq eager-state-periodic-delay 60)
+(setq eager-state-idle-delay 15)
+@end lisp
 
 That's it in a nutshell.
 
@@ -180,9 +178,9 @@ Someone else had a similar idea@comma{} but it is archived now: @uref{https://co
 
 It can happen after setting up @samp{eager-state-mode} that you notice Emacs occasionally stuttering@comma{} or even freezing for a few seconds.
 
-This would be one of the functions in @samp{eager-state-kill-emacs-hook-subset} performing very poorly.
+If so@comma{} one of the functions in @samp{eager-state-kill-emacs-hook-subset} is performing very poorly.
 
-To track down the culprit@comma{} look at time elapsed in the hidden log buffer:
+Track down the culprit by looking at the hidden log buffer:
 
 @example
 (pop-to-buffer " *eager-state*")

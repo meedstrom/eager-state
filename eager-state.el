@@ -31,16 +31,16 @@
 
 ;;     (require 'eager-state)
 ;;     (setq eager-state-kill-emacs-hook-subset
-;;           '(bookmark-exit-hook-internal
-;;             savehist-autosave
-;;             transient-maybe-save-history
-;;             org-clock-save
-;;             org-id-locations-save
-;;             save-place-kill-emacs-hook
-;;             recentf-save-list
-;;             recentf-cleanup
-;;             doom-cleanup-project-cache-h
-;;             doom-persist-scratch-buffers-h))
+;;           '( bookmark-exit-hook-internal
+;;              savehist-autosave
+;;              transient-maybe-save-history
+;;              org-clock-save
+;;              org-id-locations-save
+;;              save-place-kill-emacs-hook
+;;              recentf-save-list
+;;              recentf-cleanup
+;;              doom-cleanup-project-cache-h
+;;              doom-persist-scratch-buffers-h))
 
 ;; Note how the above list is cribbed from real-world values of
 ;; `kill-emacs-hook'.
@@ -112,7 +112,8 @@ In other words, all members of
 are removed from the corresponding hooks before those hooks run.
 
 Also removed from `kill-emacs-hook' are all functions that happen to be
-members of `eager-state-sync-hook'."
+members of `eager-state-sync-hook'.  This follows the same assumption,
+that such functions can be trusted to have run recently enough."
   :type 'boolean)
 
 (defcustom eager-state-sync-hook nil
@@ -120,11 +121,11 @@ members of `eager-state-sync-hook'."
   :type 'hook)
 
 (defcustom eager-state-idle-delay 15
-  "Be idle at least this long before actually syncing.
+  "Be idle at least this many seconds before actually syncing.
 An idle timer of this duration starts every `eager-state-periodic-delay'.
 
-If this value exceeds `eager-state-periodic-delay', Eager-State will
-only use a repeating idle timer, and no periodic timer at all."
+If this value exceeds `eager-state-periodic-delay', then eager-state
+will only use a repeating idle timer, and no periodic timer at all."
   :type 'number)
 
 (defcustom eager-state-periodic-delay 60
@@ -191,11 +192,12 @@ Set to 0 if you want to only use `eager-state-idle-delay'."
         (insert (format-time-string "\n%F %T: Starting...\n"))
         (dolist (func functions)
           (insert (if (symbolp func) (symbol-name func) "anonymous lambda")
-                  "...")
+                  "\n")
           (let ((elapsed (benchmark-elapse (funcall func))))
             (cl-assert (eq buf (current-buffer)))
-            (insert (format " took %.2fs" elapsed)
-                    "\n")))))
+            (save-excursion
+              (forward-line -1)
+              (insert (format "Took %.2fs: " elapsed)))))))
     (message "eager-state: Syncing...done")))
 
 (defun eager-state--trim-kill-emacs-hook (&rest _)
