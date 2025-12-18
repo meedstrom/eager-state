@@ -1,0 +1,191 @@
+\input texinfo    @c -*- texinfo -*-
+@c %**start of header
+@setfilename eager-state.info
+@settitle eager-state
+@documentencoding UTF-8
+@documentlanguage en
+@c %**end of header
+
+@dircategory Emacs
+@direntry
+* Eager-State: (eager-state). Pre-empt kill-emacs-hook with a crash-only design.
+@end direntry
+
+@finalout
+@titlepage
+@title eager-state
+@author Martin Edström
+@end titlepage
+
+@ifnottex
+@node Top
+@top eager-state
+
+Problem.  I'm missing some data every time I start Emacs: I can't find Org entries by @samp{org-id}@comma{} @samp{recentf} has forgotten a file I know I accessed five minutes ago@comma{} and so on.
+
+Annoying@comma{} right?
+
+Here's why it happens: many packages rely solely on @samp{kill-emacs-hook} to sync their state variables to disk.
+
+That's always been sloppy design IMHO@comma{} but particularly since ~2015 norms that apps eagerly cache their state.  (What's a "save" button?)
+
+Most of the time my Emacs goes down@comma{} it's a drained battery@comma{} SIGKILL@comma{} kernel panic@comma{} system freeze@comma{} Emacs freeze@comma{} segfault@comma{} forced log-out@comma{} X11/Wayland crash@comma{} yanked power cord@comma{} accidental or intentional power button event@comma{} or a perpetual process pause followed later by system shutdown.
+
+Those things don't happen often@comma{} but those things are nevertheless the reason Emacs goes down@comma{} when it goes down.  Because@dots{} as long as there is no problem to fix@comma{} it's not as if I will shut it down just to do a nice and orderly shutdown.
+
+Is that sinking in?  Either @strong{there is no problem@comma{}} in which case I don't @code{C-x C-c} (because I don't need to)@comma{} or @strong{there is a problem@comma{}} in which case I don't @code{C-x C-c} (because I can't).
+
+I'm not sure who is the mythical user for whom Emacs usually goes down through a clean shutdown.  As a package dev@comma{} you definitely can't assume that about all your users.
+
+@end ifnottex
+
+@menu
+* Fix for end-users::
+* For package devs::
+* Similar packages::
+* Tip Fixing slow functions::
+
+@detailmenu
+--- The Detailed Node Listing ---
+
+For package devs
+
+* Why not write our own timer?::
+
+@end detailmenu
+@end menu
+
+@node Fix for end-users
+@chapter Fix for end-users
+
+Loading this package enables a global minor mode@comma{} @samp{eager-state-mode}.
+
+(Yes@comma{} the mode enables itself on load -- reasons for that later.)
+
+Out of the box@comma{} it has no effect.  You'll want to configure at least @samp{eager-state-kill-emacs-hook-subset}.  Here's a possible setup:
+
+@lisp
+(use-package eager-state
+  :config
+  (setq eager-state-kill-emacs-hook-subset
+        '(bookmark-exit-hook-internal
+          savehist-autosave
+          transient-maybe-save-history
+          org-clock-save
+          org-id-locations-save
+          save-place-kill-emacs-hook
+          recentf-save-list
+          recentf-cleanup))
+  (setq eager-state-kill-emacs-query-functions-subset
+        '(eshell-save-some-history
+          eshell-save-some-last-dir)))
+@end lisp
+
+With the above setup@comma{} Emacs will run the listed functions every now and then.
+
+Technically@comma{} it may not run all of them@comma{} just those that are applicable.  See the docstrings of above variables.
+
+How often it runs can be tuned through two variables:
+
+@itemize
+@item
+@samp{eager-state-periodic-delay}
+@item
+@samp{eager-state-idle-delay}
+@end itemize
+
+That's it in a nutshell.
+
+As a bonus@comma{} once you trust this mode@comma{} you may feel daring enough to speed up your Emacs restarts through the following setting.  It inhibits running any of the listed functions at shutdown time (i.e. it mangles your @samp{kill-emacs-hook}):
+
+@lisp
+(setq eager-state-faster-shutdown t)
+@end lisp
+
+@node For package devs
+@chapter For package devs
+
+Here's why the mode enables itself on load.
+
+In addition to the two end-user hooks
+
+@itemize
+@item
+@samp{eager-state-kill-emacs-hook-subset}
+@item
+@samp{eager-state-kill-emacs-query-functions-subset}
+@end itemize
+
+there is also a general hook
+
+@itemize
+@item
+@samp{eager-state-sync-hook}
+@end itemize
+
+which is run along with the rest.  So@comma{} any package may @samp{require} this library@comma{} in order to gain access to that hook.  However@comma{} packages mustn't take it upon themselves to turn the mode on.  Had the user turned it off@comma{} it must stay off.
+
+That's why a mere @samp{(require 'eager-state)} is sufficient to turn the mode on@comma{} barring user configuration such as @samp{(setq eager-state-inhibit t)}@comma{} in which case that's their prerogative.
+
+Anyway@comma{} that's it!  Add your persistence functions to @samp{eager-state-sync-hook}.  Maybe also to @samp{kill-emacs-hook}@comma{} but that's a matter of taste.
+
+@menu
+* Why not write our own timer?::
+@end menu
+
+@node Why not write our own timer?
+@section Why not write our own timer?
+
+Say a package dev Alice realizes that she should put her state-persistence function on a timer@comma{} in addition to @samp{kill-emacs-hook}.  Yay@comma{} progress into the new millennium!  So her package includes the lines (simplified):
+
+@lisp
+(add-hook 'kill-emacs-hook #'alice-persist-function)
+(run-with-idle-timer 100 t #'alice-persist-function) ;; such innovation
+@end lisp
+
+But now Bob@comma{} a long-time user of @samp{eager-state-mode}@comma{} will find his Emacs running @samp{alice-persist-function} @emph{twice} when he's idle.  Because his @samp{eager-state-kill-emacs-hook-subset} already contained a reference to @samp{alist-persist-function}.
+
+That's normally not a problem@comma{} most persistence functions are well-behaved if executed many times.  But we cannot know that for sure@comma{} and it highlights the mess that may form once dozens of packages all have their own idle timers.
+
+It'll be hard for me or anyone to stay up-to-date about which packages have an idle timer and which don't@comma{} and crowd-source a good definition for @samp{eager-state-kill-emacs-hook-subset}.
+
+Furthermore@comma{} I've found it useful on occasion to spawn a throwaway Emacs that should not sync anything to disk.  Then I've been glad to be able to just turn off @samp{eager-state-mode} to prevent all of those functions from running.  This is probably a feature worth keeping.
+
+Thus@comma{} I propose that we collectively put our state-persistence functions in a single place with a clear semantic intent.  That's @samp{eager-state-sync-hook}.
+
+So instead of the aforementioned snippet
+
+@lisp
+(add-hook 'kill-emacs-hook #'alice-persist-function)
+(run-with-idle-timer 100 t #'alice-persist-function)
+@end lisp
+
+Alice can type:
+
+@lisp
+(require 'eager-state)
+(add-hook 'eager-state-sync-hook #'alice-persist-function)
+(add-hook 'kill-emacs-hook #'alice-persist-function) ; optional
+@end lisp
+
+If this proves popular@comma{} maybe we can take the idea to Emacs core.
+
+@node Similar packages
+@chapter Similar packages
+
+Someone else had a similar idea@comma{} but it is archived now: @uref{https://codeberg.org/bram85/emacs-persist-state.git}
+
+@node Tip Fixing slow functions
+@chapter Tip: Fixing slow functions
+
+It can happen after setting up @samp{eager-state-mode} that you notice Emacs occasionally stuttering@comma{} or even freezing for a few seconds.
+
+This would be one of the functions in @samp{eager-state-kill-emacs-hook-subset} performing very poorly.
+
+To track down the culprit@comma{} look at time elapsed in the hidden log buffer:
+
+@example
+(pop-to-buffer " *eager-state*")
+@end example
+
+@bye
