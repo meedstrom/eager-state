@@ -17,7 +17,7 @@
 
 ;; Author: Martin Edström <meedstrom91@gmail.com>
 ;; Created: 2024-03-24
-;; Version: 0.2.0
+;; Version: 0.2.1
 ;; Keywords: convenience
 ;; Homepage: https://github.com/meedstrom/eager-state
 ;; Package-Requires: ((emacs "29.1") (llama "0.5.0"))
