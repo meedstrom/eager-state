@@ -1,68 +1,135 @@
-* See also persist-state
-Seems someone else had the same idea: https://codeberg.org/bram85/emacs-persist-state.git
-* eager-state
+#+TITLE: eager-state
+#+AUTHOR: Martin Edström
+#+EMAIL: meedstrom91@gmail.com
+#+EXPORT_FILE_NAME: eager-state.texi
+#+TEXINFO_FILENAME: eager-state.info
+#+TEXINFO_DIR_CATEGORY: Emacs
+#+TEXINFO_DIR_TITLE: Eager-State: (eager-state).
+#+TEXINFO_DIR_DESC: Pre-empt kill-emacs-hook with a crash-only design.
 
-Problem: I'm missing some data every time I start Emacs: I can't find org notes by =org-id=, =recentf= suffers partial amnesia, and so on.
+Problem.  I'm missing some data every time I start Emacs: I can't find Org entries by =org-id=, =recentf= has forgotten a file I know I accessed five minutes ago, and so on.
 
-Very annoying, right?
+Annoying, right?
 
-It's lucky I was skilled enough to eventually figure out /why/!  Imagine life for a non-programmer Emacs user...
+Here's why it happens: many packages rely solely on =kill-emacs-hook= to sync their state variables to disk.
 
-*The why* is that many packages rely inappropriately on =kill-emacs-hook=.  They write program state to disk /only/ when Emacs shuts down cleanly!
+That's always been sloppy design IMHO, but particularly since ~2015 norms that apps eagerly cache their state.  (What's a "save" button?)
 
-That's always been considered sloppy design, but particularly so under 2024 norms, when every app eagerly caches their state.  Most of the time my Emacs goes down, it's a SIGTERM, drained battery, crash, kernel panic, system freeze, Emacs freeze, segfault, DE logout, X11/Wayland crash, yanked power cord, or accidental or intentional power button event.
+Most of the time my Emacs goes down, it's a drained battery, SIGKILL, kernel panic, system freeze, Emacs freeze, segfault, forced log-out, X11/Wayland crash, yanked power cord, accidental or intentional power button event, or a perpetual process pause followed later by system shutdown.
 
-I'm not sure who is the mythical user for whom Emacs usually goes down through a choice to type ~C-x C-c~ that succeeds.  As a package dev, you definitely can't assume that about all your users.
+Those things don't happen often, but those things are nevertheless the reason Emacs goes down, when it goes down.  Because... as long as there is no problem to fix, it's not as if I will shut it down just to do a nice and orderly shutdown.
 
-** Fix
+Is that sinking in?  Either *there is no problem,* in which case I don't ~C-x C-c~ (because I don't need to), or *there is a problem,* in which case I don't ~C-x C-c~ (because I can't).
 
-This package ships two features
+I'm not sure who is the mythical user for whom Emacs usually goes down through a clean shutdown.  As a package dev, you definitely can't assume that about all your users.
 
-- For end-users, a global mode =eager-state-preempt-kill-emacs-hook-mode=
-  - It's plug-and-play, but feel free to inspect your own =kill-emacs-hook= for more stuff to add to the variable =eager-state-preempt-functions=.  If you found anything that belongs there, let me know!  I'll include it in the default.
+* Fix for end-users
 
-- For package devs, a new hook =eager-state-sync-hook=, as a replacement for =kill-emacs-hook=.
-  - Do not add your persistence function to both, choose one or the other!  It will run at shutdown anyway.
+Loading this package enables a global minor mode, =eager-state-mode=.
 
-** What the package does
+(Yes, the mode enables itself on load -- reasons for that later.)
 
-Literally just one thing: after 3 minutes of idle, it runs lots of functions involved with program state persistence, such as =savehist-autosave=, =save-place-kill-emacs-hook=, =recentf-save-list=, =org-persist-write-all= and more.
+Out of the box, it has no effect.  You'll want to configure at least =eager-state-kill-emacs-hook-subset=.  Here's a possible setup:
 
-** Why the new =eager-state-sync-hook=?
+#+begin_src elisp
+(use-package eager-state
+  :config
+  (setq eager-state-kill-emacs-hook-subset
+        '(bookmark-exit-hook-internal
+          savehist-autosave
+          transient-maybe-save-history
+          org-clock-save
+          org-id-locations-save
+          save-place-kill-emacs-hook
+          recentf-save-list
+          recentf-cleanup))
+  (setq eager-state-kill-emacs-query-functions-subset
+        '(eshell-save-some-history
+          eshell-save-some-last-dir)))
+#+end_src
 
-Originally, I just made the end-user mode, "preempt-kill-emacs-hook-mode".  *But there's a problem with publishing only that* to the wider ecosystem.
+With the above setup, Emacs will run the listed functions every now and then.
 
-Say a package dev Alice realizes she should put her persist function on an idle timer, not only on =kill-emacs-hook=.  Yay, progress!  So her package includes the lines
+Technically, it may not run all of them, just those that are applicable.  See the docstrings of above variables.
+
+How often it runs can be tuned through two variables:
+
+- =eager-state-periodic-delay=
+- =eager-state-idle-delay=
+
+That's it in a nutshell.
+
+As a bonus, once you trust this mode, you may feel daring enough to speed up your Emacs restarts through the following setting.  It inhibits running any of the listed functions at shutdown time (i.e. it mangles your =kill-emacs-hook=):
+
+#+begin_src elisp
+(setq eager-state-faster-shutdown t)
+#+end_src
+
+* For package devs
+
+Here's why the mode enables itself on load.
+
+In addition to the two end-user hooks
+
+- =eager-state-kill-emacs-hook-subset=
+- =eager-state-kill-emacs-query-functions-subset=
+
+there is also a general hook
+
+-  =eager-state-sync-hook=
+
+which is run along with the rest.  So, any package may =require= this library, in order to gain access to that hook.  However, packages mustn't take it upon themselves to turn the mode on.  Had the user turned it off, it must stay off.
+
+That's why a mere =(require 'eager-state)= is sufficient to turn the mode on, barring user configuration such as =(setq eager-state-inhibit t)=, in which case that's their prerogative.
+
+Anyway, that's it!  Add your persistence functions to =eager-state-sync-hook=.  Maybe also to =kill-emacs-hook=, but that's a matter of taste.
+
+** Why not write our own timer?
+
+Say a package dev Alice realizes that she should put her state-persistence function on a timer, in addition to =kill-emacs-hook=.  Yay, progress into the new millennium!  So her package includes the lines (simplified):
 
 #+begin_src elisp
 (add-hook 'kill-emacs-hook #'alice-persist-function)
-(run-with-idle-timer 180 t #'alice-persist-function) ;; such innovation
+(run-with-idle-timer 100 t #'alice-persist-function) ;; such innovation
 #+end_src
 
-But now Bob, a long-time user of "preempt-kill-emacs-hook-mode", will now find his Emacs running =alice-persist-function= /twice/ when he's idle.  Because this mode already contained a reference to =alist-persist-function=.
+But now Bob, a long-time user of =eager-state-mode=, will find his Emacs running =alice-persist-function= /twice/ when he's idle.  Because his =eager-state-kill-emacs-hook-subset= already contained a reference to =alist-persist-function=.
 
-That's normally not a problem, most persist functions are well-behaved if executed many times.  But we cannot know that for sure, and it highlights the mess that may form once dozens of packages all have their own idle timers.
+That's normally not a problem, most persistence functions are well-behaved if executed many times.  But we cannot know that for sure, and it highlights the mess that may form once dozens of packages all have their own idle timers.
 
-It'll be hard for me or anyone to stay up-to-date about which packages have an idle timer and which don't, especially when versioning comes into play.
+It'll be hard for me or anyone to stay up-to-date about which packages have an idle timer and which don't, and crowd-source a good definition for =eager-state-kill-emacs-hook-subset=.
 
-Furthermore, I've found it useful on occasion to spawn a throwaway Emacs that should not sync anything to disk.  Then I've been glad to be able to just turn off "preempt-kill-emacs-hook-mode" to prevent all of those functions from running.  This is probably a feature worth keeping.
+Furthermore, I've found it useful on occasion to spawn a throwaway Emacs that should not sync anything to disk.  Then I've been glad to be able to just turn off =eager-state-mode= to prevent all of those functions from running.  This is probably a feature worth keeping.
 
-Thus, I propose that we collectively put our idle timers in a single place with a clear semantic intent.  That's =eager-state-update-hook=.
+Thus, I propose that we collectively put our state-persistence functions in a single place with a clear semantic intent.  That's =eager-state-sync-hook=.
 
 So instead of the aforementioned snippet
 
 #+begin_src elisp
 (add-hook 'kill-emacs-hook #'alice-persist-function)
-(run-with-idle-timer 180 t #'alice-persist-function)
+(run-with-idle-timer 100 t #'alice-persist-function)
 #+end_src
 
-Alice can type
+Alice can type:
 
 #+begin_src elisp
 (require 'eager-state)
-(add-hook 'eager-state-update-hook #'alice-persist-function)
+(add-hook 'eager-state-sync-hook #'alice-persist-function)
+(add-hook 'kill-emacs-hook #'alice-persist-function) ; optional
 #+end_src
 
 If this proves popular, maybe we can take the idea to Emacs core.
 
-Opinions welcome!  I'm not 100% sure it's a good idea.
+* Similar packages
+
+Someone else had a similar idea, but it is archived now: https://codeberg.org/bram85/emacs-persist-state.git
+
+* Tip: Fixing slow functions
+
+It can happen after setting up =eager-state-mode= that you notice Emacs occasionally stuttering, or even freezing for a few seconds.
+
+This would be one of the functions in =eager-state-kill-emacs-hook-subset= performing very poorly.
+
+To track down the culprit, look at time elapsed in the hidden log buffer:
+
+: (pop-to-buffer " *eager-state*")
