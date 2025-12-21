@@ -27,7 +27,7 @@ Annoying@comma{} right?
 
 Here's why it happens: many packages rely solely on @samp{kill-emacs-hook} to sync their state variables to disk.
 
-That's always been sloppy design IMHO@comma{} but particularly since ~2015 norms that apps eagerly cache their state.  (What's a "save" button?)
+That's always been sloppy design IMHO@comma{} but particularly since ~2015 norms that apps should eagerly cache their state.  (What's a "save" button?)
 
 Most of the time my Emacs goes down@comma{} it's a drained battery@comma{} SIGKILL@comma{} kernel panic@comma{} system freeze@comma{} Emacs freeze@comma{} segfault@comma{} forced log-out@comma{} X11/Wayland crash@comma{} yanked power cord@comma{} accidental or intentional power button event@comma{} or a perpetual process pause followed later by system shutdown.
 
@@ -42,8 +42,9 @@ I'm not sure who is the mythical user for whom Emacs usually goes down through a
 @menu
 * Fix for end-users::
 * For package devs::
-* Tip Fixing slow functions::
 * Comparison to persist-state.el: Comparison to persist-stateel. 
+* Tip Fixing slow functions::
+* Tip recentf::
 
 @detailmenu
 --- The Detailed Node Listing ---
@@ -68,17 +69,17 @@ Out of the box@comma{} it has no effect.  You'll want to configure at least @sam
 (use-package eager-state
   :config
   (setq eager-state-kill-emacs-hook-subset
-        '( bookmark-exit-hook-internal
-           savehist-autosave
-           transient-maybe-save-history
-           org-clock-save
-           org-id-locations-save
-           save-place-kill-emacs-hook
-           recentf-save-list
-           recentf-cleanup))
+        '(bookmark-exit-hook-internal
+          savehist-autosave
+          transient-maybe-save-history
+          org-clock-save
+          org-id-locations-save
+          save-place-kill-emacs-hook
+          recentf-save-list
+          recentf-cleanup))
   (setq eager-state-kill-emacs-query-functions-subset
-        '( eshell-save-some-history
-           eshell-save-some-last-dir)))
+        '(eshell-save-some-history
+          eshell-save-some-last-dir)))
 @end lisp
 
 With the above setup@comma{} Emacs will try to run the listed functions every now and then.
@@ -166,19 +167,6 @@ Alice can type:
 
 If this proves popular@comma{} maybe we can take the idea to Emacs core.
 
-@node Tip Fixing slow functions
-@chapter Tip: Fixing slow functions
-
-It can happen after setting up @samp{eager-state-mode} that you notice Emacs occasionally stuttering@comma{} or even freezing for a few seconds.
-
-If so@comma{} one of the functions in @samp{eager-state-kill-emacs-hook-subset} is performing very poorly.
-
-Track down the culprit by looking at the hidden log buffer:
-
-@example
-(pop-to-buffer " *eager-state*")
-@end example
-
 @node Comparison to persist-stateel
 @chapter Comparison to persist-state.el
 
@@ -200,5 +188,44 @@ Persist-state instead uses wrappers that do their own checks@comma{} e.g. check 
 @item
 Eager-state can be used as a library by other packages@comma{} as they can simply add to @samp{eager-state-sync-hook} without having to unhygienically enable a mode on the user's behalf.
 @end enumerate
+
+@node Tip Fixing slow functions
+@chapter Tip: Fixing slow functions
+
+It can happen after setting up @samp{eager-state-mode} that you notice Emacs occasionally stuttering@comma{} or even freezing for a few seconds.
+
+If so@comma{} one of the functions in @samp{eager-state-kill-emacs-hook-subset} is performing very poorly.
+
+Track down the culprit by looking at the hidden log buffer:
+
+@example
+(pop-to-buffer " *eager-state*")
+@end example
+
+@node Tip recentf
+@chapter Tip: recentf
+
+If your issue is just with Recentf@comma{} you could use the following snippet instead of this package.
+
+@lisp
+;; Remember the file immediately on file visit.
+(advice-add #'recentf-track-opened-file :override
+            (defun my-recentf-track-file ()
+              (when (and buffer-file-name (recentf-keep-p buffer-file-name))
+                (let ((inhibit-message t)
+                      (save-silently t))
+                  (recentf-add-file buffer-file-name)
+                  (recentf-save-list)))))
+
+;; Fix performance issue (may break recentf for tramp@comma{} idk).
+(setq recentf-filename-handlers nil)
+
+;; Remove it from shutdown hook.  Recentf has an insane predicate
+;; `recentf-enabled-p' which... inspects said hook... which means we must not
+;; remove it during runtime.
+(advice-add 'kill-emacs :before
+            (lambda (&rest _)
+              (remove-hook 'kill-emacs-hook #'recentf-save-list)))
+@end lisp
 
 @bye

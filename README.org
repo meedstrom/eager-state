@@ -13,7 +13,7 @@ Annoying, right?
 
 Here's why it happens: many packages rely solely on =kill-emacs-hook= to sync their state variables to disk.
 
-That's always been sloppy design IMHO, but particularly since ~2015 norms that apps eagerly cache their state.  (What's a "save" button?)
+That's always been sloppy design IMHO, but particularly since ~2015 norms that apps should eagerly cache their state.  (What's a "save" button?)
 
 Most of the time my Emacs goes down, it's a drained battery, SIGKILL, kernel panic, system freeze, Emacs freeze, segfault, forced log-out, X11/Wayland crash, yanked power cord, accidental or intentional power button event, or a perpetual process pause followed later by system shutdown.
 
@@ -35,17 +35,17 @@ Out of the box, it has no effect.  You'll want to configure at least =eager-stat
 (use-package eager-state
   :config
   (setq eager-state-kill-emacs-hook-subset
-        '( bookmark-exit-hook-internal
-           savehist-autosave
-           transient-maybe-save-history
-           org-clock-save
-           org-id-locations-save
-           save-place-kill-emacs-hook
-           recentf-save-list
-           recentf-cleanup))
+        '(bookmark-exit-hook-internal
+          savehist-autosave
+          transient-maybe-save-history
+          org-clock-save
+          org-id-locations-save
+          save-place-kill-emacs-hook
+          recentf-save-list
+          recentf-cleanup))
   (setq eager-state-kill-emacs-query-functions-subset
-        '( eshell-save-some-history
-           eshell-save-some-last-dir)))
+        '(eshell-save-some-history
+          eshell-save-some-last-dir)))
 #+end_src
 
 With the above setup, Emacs will try to run the listed functions every now and then.
@@ -120,16 +120,6 @@ Alice can type:
 
 If this proves popular, maybe we can take the idea to Emacs core.
 
-* Tip: Fixing slow functions
-
-It can happen after setting up =eager-state-mode= that you notice Emacs occasionally stuttering, or even freezing for a few seconds.
-
-If so, one of the functions in =eager-state-kill-emacs-hook-subset= is performing very poorly.
-
-Track down the culprit by looking at the hidden log buffer:
-
-: (pop-to-buffer " *eager-state*")
-
 * Comparison to persist-state.el
 
 This is similar to [[https://codeberg.org/bram85/emacs-persist-state.git][persist-state]], but implementation differs:
@@ -141,3 +131,39 @@ This is similar to [[https://codeberg.org/bram85/emacs-persist-state.git][persis
     - Persist-state instead uses wrappers that do their own checks, e.g. check if =recentf-mode= is bound and true before calling =recentf-save-list=. That increases the amount of labor the user has to do to add more.
 
 2. Eager-state can be used as a library by other packages, as they can simply add to =eager-state-sync-hook= without having to unhygienically enable a mode on the user's behalf.
+
+
+* Tip: Fixing slow functions
+
+It can happen after setting up =eager-state-mode= that you notice Emacs occasionally stuttering, or even freezing for a few seconds.
+
+If so, one of the functions in =eager-state-kill-emacs-hook-subset= is performing very poorly.
+
+Track down the culprit by looking at the hidden log buffer:
+
+: (pop-to-buffer " *eager-state*")
+
+* Tip: recentf
+
+If your issue is just with Recentf, you could use the following snippet instead of this package.
+
+#+begin_src elisp
+;; Remember the file immediately on file visit.
+(advice-add #'recentf-track-opened-file :override
+            (defun my-recentf-track-file ()
+              (when (and buffer-file-name (recentf-keep-p buffer-file-name))
+                (let ((inhibit-message t)
+                      (save-silently t))
+                  (recentf-add-file buffer-file-name)
+                  (recentf-save-list)))))
+
+;; Fix performance issue (may break recentf for tramp, idk).
+(setq recentf-filename-handlers nil)
+
+;; Remove it from shutdown hook.  Recentf has an insane predicate
+;; `recentf-enabled-p' which... inspects said hook... which means we must not
+;; remove it during runtime.
+(advice-add 'kill-emacs :before
+            (lambda (&rest _)
+              (remove-hook 'kill-emacs-hook #'recentf-save-list)))
+#+end_src
