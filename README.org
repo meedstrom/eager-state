@@ -120,10 +120,6 @@ Alice can type:
 
 If this proves popular, maybe we can take the idea to Emacs core.
 
-* Similar packages
-
-Someone else had a similar idea, but it is archived now: https://codeberg.org/bram85/emacs-persist-state.git
-
 * Tip: Fixing slow functions
 
 It can happen after setting up =eager-state-mode= that you notice Emacs occasionally stuttering, or even freezing for a few seconds.
@@ -133,3 +129,15 @@ If so, one of the functions in =eager-state-kill-emacs-hook-subset= is performin
 Track down the culprit by looking at the hidden log buffer:
 
 : (pop-to-buffer " *eager-state*")
+
+* Comparison to persist-state.el
+
+This is similar to [[https://codeberg.org/bram85/emacs-persist-state.git][persist-state]], but implementation differs:
+
+ 1. Eager-state gives you the ability to call functions if and only if they are also in =kill-emacs-hook= at runtime.
+
+    That leaves it to whatever package originally put the function there, to determine whether it is appropriate to call.
+
+    - Persist-state instead uses wrappers that do their own checks, e.g. check if =recentf-mode= is bound and true before calling =recentf-save-list=. That increases the amount of labor the user has to do to add more.
+
+2. Eager-state can be used as a library by other packages, as they can simply add to =eager-state-sync-hook= without having to unhygienically enable a mode on the user's behalf.
