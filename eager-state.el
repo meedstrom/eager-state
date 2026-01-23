@@ -1,6 +1,6 @@
 ;;; eager-state.el --- Eagerly persist data onto disk  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024-2025 Martin Edström
+;; Copyright (C) 2024-2026 Martin Edström
 
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
 
 ;; Author: Martin Edström <meedstrom91@gmail.com>
 ;; Created: 2024-03-24
-;; Version: 0.2.1
+;; Version: 0.2.2
 ;; Keywords: convenience
 ;; Homepage: https://github.com/meedstrom/eager-state
 ;; Package-Requires: ((emacs "29.1") (llama "0.5.0"))
